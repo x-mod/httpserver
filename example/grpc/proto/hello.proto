@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+package demo;
+
+// The Contact service definition.
+service Demo {
+    rpc Hello(HelloReq) returns (HelloResp) {
+        option (google.api.http) = {
+            post: "/v1/example/hello"
+            body: "*"
+        };
+    }
+}
+
+message HelloReq{
+    string name = 1;
+}
+
+message HelloResp {
+    string greet = 1;
+}
