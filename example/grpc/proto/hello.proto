@@ -1,15 +1,18 @@
 syntax = "proto3";
 
-import "google/api/annotations.proto";
+import "options/options.proto";
 
 package demo;
 
 // The Contact service definition.
 service Demo {
+    option (options.service) = {
+        version: "v1"
+    }
     rpc Hello(HelloReq) returns (HelloResp) {
-        option (google.api.http) = {
-            post: "/v1/example/hello"
-            body: "*"
+        option (options.http) = {
+            uri: "/v1/example/hello"
+            method: "get"
         };
     }
 }

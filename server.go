@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -87,7 +88,9 @@ func Host(host string) RouteOpt {
 }
 func Method(methods ...string) RouteOpt {
 	return func(cf *RouteCfg) {
-		cf.methods = append(cf.methods, methods...)
+		for _, m := range methods {
+			cf.methods = append(cf.methods, strings.ToUpper(m))
+		}
 	}
 }
 func Prefix(prefix string) RouteOpt {
