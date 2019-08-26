@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"strings"
 	"time"
@@ -13,10 +14,9 @@ type ContextHandler func(context.Context, http.ResponseWriter, *http.Request)
 
 type Server struct {
 	http.Server
-	certFile string
-	keyFile  string
-	ctx      context.Context
-	route    *mux.Router
+	tls   *tls.Config
+	ctx   context.Context
+	route *mux.Router
 }
 
 type ServerOpt func(*Server)
@@ -26,12 +26,13 @@ func ListenAddress(addr string) ServerOpt {
 		srv.Server.Addr = addr
 	}
 }
-func TLSFiles(certFile, keyFile string) ServerOpt {
+
+func TLSConfig(cf *tls.Config) ServerOpt {
 	return func(srv *Server) {
-		srv.certFile = certFile
-		srv.keyFile = keyFile
+		srv.tls = cf
 	}
 }
+
 func ReadTimeout(rd time.Duration) ServerOpt {
 	return func(srv *Server) {
 		srv.Server.ReadTimeout = rd
@@ -160,8 +161,9 @@ func (srv *Server) Route(opts ...RouteOpt) {
 func (srv *Server) Serve(ctx context.Context) error {
 	srv.ctx = ctx
 	srv.Handler = srv.route
-	if srv.certFile != "" && srv.keyFile != "" {
-		return srv.Server.ListenAndServeTLS(srv.certFile, srv.keyFile)
+	if srv.tls != nil {
+		srv.Server.TLSConfig = srv.tls
+		return srv.ListenAndServeTLS("", "")
 	}
 	return srv.Server.ListenAndServe()
 }

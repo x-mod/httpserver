@@ -9,6 +9,7 @@ require (
 	github.com/x-mod/httpclient v0.2.1
 	github.com/x-mod/options v0.1.0
 	github.com/x-mod/routine v1.1.2
+	github.com/x-mod/tlsconfig v0.0.1
 	golang.org/x/net v0.0.0-20190509222800-a4d6f7feada5
 	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
 	google.golang.org/grpc v1.19.1

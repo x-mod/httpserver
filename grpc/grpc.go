@@ -2,12 +2,14 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"reflect"
 
 	"github.com/x-mod/httpserver"
 	"github.com/x-mod/options"
+	"github.com/x-mod/tlsconfig"
 )
 
 //MethodHandler handler format
@@ -29,6 +31,7 @@ type ServiceDescription struct {
 
 type HTTPServerCfg struct {
 	host string
+	tls  *tls.Config
 }
 type HTTPServer struct {
 	*httpserver.Server
@@ -42,6 +45,14 @@ func Host(host string) HTTPServerOpt {
 	}
 }
 
+func TLSConfig(opts ...tlsconfig.Option) HTTPServerOpt {
+	return func(cfg *HTTPServerCfg) {
+		if len(opts) > 0 {
+			cfg.tls = tlsconfig.New(opts...)
+		}
+	}
+}
+
 func NewHTTPServer(opts ...HTTPServerOpt) *HTTPServer {
 	cfg := &HTTPServerCfg{
 		host: "127.0.0.1",
@@ -49,11 +60,14 @@ func NewHTTPServer(opts ...HTTPServerOpt) *HTTPServer {
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	srv := httpserver.NewServer(
+	srvopts := []httpserver.ServerOpt{
 		httpserver.ListenAddress(cfg.host),
-	)
+	}
+	if cfg.tls != nil {
+		srvopts = append(srvopts, httpserver.TLSConfig(cfg.tls))
+	}
 	return &HTTPServer{
-		Server: srv,
+		Server: httpserver.NewServer(srvopts...),
 		cfg:    cfg,
 	}
 }
