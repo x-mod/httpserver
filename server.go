@@ -21,10 +21,15 @@ type Server struct {
 
 type ServerOpt func(*Server)
 
-func ListenAddress(addr string) ServerOpt {
+func Address(addr string) ServerOpt {
 	return func(srv *Server) {
 		srv.Server.Addr = addr
 	}
+}
+
+//Deprecated
+func ListenAddress(addr string) ServerOpt {
+	return Address(addr)
 }
 
 func TLSConfig(cf *tls.Config) ServerOpt {
