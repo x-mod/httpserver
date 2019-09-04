@@ -140,25 +140,28 @@ func (srv *Server) Route(opts ...RouteOpt) {
 	for _, opt := range opts {
 		opt(cf)
 	}
-	if cf.pattern != "" && cf.handler != nil {
-		r := srv.route.Handle(cf.pattern, srv.wrapHandler(cf.handler))
+	if cf.handler != nil {
+		r := srv.route.NewRoute().Handler(srv.wrapHandler(cf.handler))
+		if cf.pattern != "" {
+			r.Path(cf.pattern)
+		}
+		if cf.prefix != "" {
+			r.PathPrefix(cf.prefix)
+		}
 		if len(cf.schemes) > 0 {
-			r = r.Schemes(cf.schemes...)
+			r.Schemes(cf.schemes...)
 		}
 		if len(cf.methods) > 0 {
-			r = r.Methods(cf.methods...)
+			r.Methods(cf.methods...)
 		}
 		if len(cf.host) > 0 {
-			r = r.Host(cf.host)
-		}
-		if len(cf.prefix) > 0 {
-			r = r.PathPrefix(cf.prefix)
+			r.Host(cf.host)
 		}
 		if len(cf.headers) > 0 && len(cf.headers)%2 == 0 {
-			r = r.Headers(cf.headers...)
+			r.Headers(cf.headers...)
 		}
 		if len(cf.queries) > 0 && len(cf.queries)%2 == 0 {
-			r = r.Queries(cf.queries...)
+			r.Queries(cf.queries...)
 		}
 	}
 }

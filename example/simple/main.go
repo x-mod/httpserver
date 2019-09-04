@@ -24,6 +24,10 @@ func main() {
 		httpserver.Pattern("/hello"),
 		httpserver.Handler(Hello),
 	)
+	srv.Route(
+		httpserver.Prefix("/foo"),
+		httpserver.Handler(Helo),
+	)
 
 	err := routine.Main(
 		routine.ExecutorFunc(srv.Serve),
@@ -44,6 +48,12 @@ func main() {
 
 func Hello(ctx context.Context, wr http.ResponseWriter, req *http.Request) {
 	log.Println("hello handler ... ok", ctx.Value("x"))
+	wr.WriteHeader(http.StatusOK)
+	_, _ = wr.Write([]byte("I'm OK"))
+}
+
+func Helo(ctx context.Context, wr http.ResponseWriter, req *http.Request) {
+	log.Println("Helo handler ... ok", ctx.Value("x"))
 	wr.WriteHeader(http.StatusOK)
 	_, _ = wr.Write([]byte("I'm OK"))
 }
