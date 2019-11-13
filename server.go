@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"crypto/tls"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -155,6 +156,7 @@ func (srv *Server) Serve(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Println("serving at ", srv.addr)
 	if srv.tls != nil {
 		ln = tls.NewListener(ln, srv.tls)
 	}
