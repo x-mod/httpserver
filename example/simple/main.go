@@ -12,7 +12,7 @@ import (
 
 func main() {
 	srv := httpserver.NewServer(
-		httpserver.ListenAddress(":8080"),
+		httpserver.Address(":8080"),
 	)
 	//优先匹配放在前面定义
 	srv.Route(
@@ -35,10 +35,7 @@ func main() {
 		routine.Interrupts(routine.DefaultCancelInterruptors...),
 		routine.Cleanup(
 			routine.ExecutorFunc(func(ctx context.Context) error {
-				//graceful shutdown MaxTime 15s
-				tmctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-				defer cancel()
-				return srv.Shutdown(tmctx)
+				return srv.Shutdown(ctx)
 			})),
 	)
 	if err != nil {

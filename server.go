@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -13,23 +14,19 @@ import (
 type ContextHandler func(context.Context, http.ResponseWriter, *http.Request)
 
 type Server struct {
-	http.Server
-	tls   *tls.Config
-	ctx   context.Context
-	route *mux.Router
+	addr   string
+	rctx   context.Context
+	http   *http.Server
+	tls    *tls.Config
+	routes *mux.Router
 }
 
 type ServerOpt func(*Server)
 
 func Address(addr string) ServerOpt {
 	return func(srv *Server) {
-		srv.Server.Addr = addr
+		srv.addr = addr
 	}
-}
-
-//Deprecated
-func ListenAddress(addr string) ServerOpt {
-	return Address(addr)
 }
 
 func TLSConfig(cf *tls.Config) ServerOpt {
@@ -38,36 +35,20 @@ func TLSConfig(cf *tls.Config) ServerOpt {
 	}
 }
 
-func ReadTimeout(rd time.Duration) ServerOpt {
-	return func(srv *Server) {
-		srv.Server.ReadTimeout = rd
-	}
-}
-func WriteTimeout(wr time.Duration) ServerOpt {
-	return func(srv *Server) {
-		srv.Server.WriteTimeout = wr
-	}
-}
-func IdleTimeout(idle time.Duration) ServerOpt {
-	return func(srv *Server) {
-		srv.Server.IdleTimeout = idle
-	}
-}
-
 func NewServer(opts ...ServerOpt) *Server {
-	srv := &Server{
-		ctx:   context.TODO(),
-		route: mux.NewRouter(),
-		Server: http.Server{
+	hsrv := &Server{
+		rctx: context.TODO(),
+		http: &http.Server{
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
+		routes: mux.NewRouter(),
 	}
 	for _, opt := range opts {
-		opt(srv)
+		opt(hsrv)
 	}
-	return srv
+	return hsrv
 }
 
 type RouteCfg struct {
@@ -127,7 +108,7 @@ func Handler(h ContextHandler) RouteOpt {
 
 func (srv *Server) wrapHandler(h ContextHandler) http.HandlerFunc {
 	return func(wr http.ResponseWriter, req *http.Request) {
-		h(srv.ctx, wr, req)
+		h(srv.rctx, wr, req)
 	}
 }
 
@@ -141,7 +122,7 @@ func (srv *Server) Route(opts ...RouteOpt) {
 		opt(cf)
 	}
 	if cf.handler != nil {
-		r := srv.route.NewRoute().Handler(srv.wrapHandler(cf.handler))
+		r := srv.routes.NewRoute().Handler(srv.wrapHandler(cf.handler))
 		if cf.pattern != "" {
 			r.Path(cf.pattern)
 		}
@@ -167,11 +148,19 @@ func (srv *Server) Route(opts ...RouteOpt) {
 }
 
 func (srv *Server) Serve(ctx context.Context) error {
-	srv.ctx = ctx
-	srv.Handler = srv.route
-	if srv.tls != nil {
-		srv.Server.TLSConfig = srv.tls
-		return srv.ListenAndServeTLS("", "")
+	srv.rctx = ctx
+	srv.http.Handler = srv.routes
+
+	ln, err := net.Listen("tcp", srv.addr)
+	if err != nil {
+		return err
 	}
-	return srv.Server.ListenAndServe()
+	if srv.tls != nil {
+		ln = tls.NewListener(ln, srv.tls)
+	}
+	return srv.http.Serve(ln)
+}
+
+func (srv *Server) Shutdown(ctx context.Context) error {
+	return srv.http.Shutdown(ctx)
 }
