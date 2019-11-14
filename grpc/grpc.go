@@ -1,113 +1,39 @@
 package grpc
 
 import (
+	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"reflect"
 
-	"github.com/x-mod/httpserver"
-	"github.com/x-mod/options"
-	"github.com/x-mod/tlsconfig"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
+	"github.com/x-mod/httpserver/render"
 )
 
-//MethodHandler handler format
-type MethodHandler func(interface{}, context.Context, http.ResponseWriter, *http.Request)
-
-type MethodDescription struct {
-	MethodName string
-	Handler    MethodHandler
-	Option     *options.HttpOption
+func defaultPBContext(req *http.Request, ctx context.Context) context.Context {
+	if ctx != nil {
+		return req.Context()
+	}
+	return ctx
 }
 
-type ServiceDescription struct {
-	PackageName  string
-	ServiceName  string
-	Implemention interface{}
-	Methods      []MethodDescription
-	Option       *options.ServiceOption
+func defaultPBRequest(req *http.Request, in proto.Message) error {
+	data, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return err
+	}
+	defer req.Body.Close()
+	return jsonpb.Unmarshal(bytes.NewBuffer(data), in)
 }
 
-type HTTPServerCfg struct {
-	host string
-	tls  *tls.Config
-}
-type HTTPServer struct {
-	*httpserver.Server
-	cfg *HTTPServerCfg
-}
-type HTTPServerOpt func(*HTTPServerCfg)
-
-func Host(host string) HTTPServerOpt {
-	return func(cfg *HTTPServerCfg) {
-		cfg.host = host
+func defaultPBResponse(wr http.ResponseWriter, out proto.Message, err error) {
+	if err != nil {
+		render.Error(err).Response(wr, render.StatusCode(http.StatusExpectationFailed))
+	} else {
+		render.PBMessage(out).Response(wr)
 	}
-}
-
-func TLSConfig(opts ...tlsconfig.Option) HTTPServerOpt {
-	return func(cfg *HTTPServerCfg) {
-		if len(opts) > 0 {
-			cfg.tls = tlsconfig.New(opts...)
-		}
-	}
-}
-
-func NewHTTPServer(opts ...HTTPServerOpt) *HTTPServer {
-	cfg := &HTTPServerCfg{
-		host: "127.0.0.1",
-	}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-	srvopts := []httpserver.ServerOpt{
-		httpserver.ListenAddress(cfg.host),
-	}
-	if cfg.tls != nil {
-		srvopts = append(srvopts, httpserver.TLSConfig(cfg.tls))
-	}
-	return &HTTPServer{
-		Server: httpserver.NewServer(srvopts...),
-		cfg:    cfg,
-	}
-}
-
-//RegistService
-func (srv *HTTPServer) RegisterService(sd *ServiceDescription, impl interface{}) error {
-	destT := reflect.TypeOf(sd.Implemention).Elem()
-	implT := reflect.TypeOf(impl)
-	if !implT.Implements(destT) {
-		return fmt.Errorf("implemention type %v does not satisfy %v", implT, destT)
-	}
-	sd.Implemention = impl
-	return srv.register(sd)
-}
-
-func (srv *HTTPServer) register(sd *ServiceDescription) error {
-	version := "v1"
-	if sd.Option != nil {
-		if sd.Option.Version != "" {
-			version = sd.Option.Version
-		}
-	}
-	for _, m := range sd.Methods {
-		opts := []httpserver.RouteOpt{
-			httpserver.Handler(func(ctx context.Context, wr http.ResponseWriter, req *http.Request) {
-				m.Handler(sd.Implemention, ctx, wr, req)
-			}),
-			httpserver.Pattern(URIFormat(version, sd.PackageName, sd.ServiceName, m.MethodName)),
-		}
-		if m.Option != nil {
-			if m.Option.Method != "" {
-				opts = append(opts, httpserver.Method(m.Option.Method))
-			}
-			if m.Option.Uri != "" {
-				opts = append(opts, httpserver.Pattern(m.Option.Uri))
-			}
-		}
-		srv.Route(opts...)
-	}
-	return nil
 }
 
 //default URIFormat: /v1/pkg.Service/Method
@@ -116,9 +42,18 @@ func defaultURIFormat(version string, pkg string, service string, method string)
 }
 
 type URIFormatFunc func(version string, pkg string, service string, method string) string
+type PBContextFunc func(req *http.Request, ctx context.Context) context.Context
+type PBRequestFunc func(req *http.Request, in proto.Message) error
+type PBResponseFunc func(wr http.ResponseWriter, out proto.Message, err error)
 
+var PBContext PBContextFunc
+var PBRequest PBRequestFunc
+var PBResponse PBResponseFunc
 var URIFormat URIFormatFunc
 
 func init() {
+	PBContext = defaultPBContext
+	PBRequest = defaultPBRequest
+	PBResponse = defaultPBResponse
 	URIFormat = defaultURIFormat
 }

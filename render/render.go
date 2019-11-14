@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"text/template"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
 	"github.com/x-mod/errors"
 )
 
@@ -42,6 +44,23 @@ func HeaderDel(key string) ResponseOpt {
 //Responsor interface
 type Responsor interface {
 	Response(http.ResponseWriter, ...ResponseOpt) error
+}
+
+type PBMessageRender struct {
+	data proto.Message
+}
+
+func PBMessage(data proto.Message) *PBMessageRender {
+	return &PBMessageRender{data: data}
+}
+
+func (r *PBMessageRender) Response(wr http.ResponseWriter, opts ...ResponseOpt) error {
+	wr.Header().Set("Content-Type", "application/json; charset=utf-8")
+	for _, opt := range opts {
+		opt(wr)
+	}
+	marshaler := &jsonpb.Marshaler{EmitDefaults: true}
+	return marshaler.Marshal(wr, r.data)
 }
 
 type JSONRender struct {
