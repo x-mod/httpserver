@@ -17,15 +17,16 @@ import (
 )
 
 type Server struct {
-	name   string
-	addr   string
-	rctx   context.Context
-	http   *http.Server
-	tls    *tls.Config
-	routes *mux.Router
-	traced bool
-	events trace.EventLog
-	mu     sync.Mutex
+	name    string
+	addr    string
+	rctx    context.Context
+	http    *http.Server
+	tls     *tls.Config
+	routes  *mux.Router
+	handler http.Handler
+	traced  bool
+	events  trace.EventLog
+	mu      sync.Mutex
 }
 
 type ServerOpt func(*Server)
@@ -51,6 +52,12 @@ func TLSConfig(cf *tls.Config) ServerOpt {
 func NetTrace(flag bool) ServerOpt {
 	return func(srv *Server) {
 		srv.traced = flag
+	}
+}
+
+func HTTPHandler(handler http.Handler) ServerOpt {
+	return func(srv *Server) {
+		srv.handler = handler
 	}
 }
 
@@ -175,6 +182,9 @@ func (srv *Server) Route(opts ...RouteOpt) {
 func (srv *Server) Serve(ctx context.Context) error {
 	srv.rctx = ctx
 	srv.http.Handler = srv.routes
+	if srv.handler != nil {
+		srv.http.Handler = srv.handler
+	}
 	srv.http.BaseContext = srv.baseCtx
 
 	ln, err := net.Listen("tcp", srv.addr)
