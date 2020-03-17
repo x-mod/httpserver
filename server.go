@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"runtime"
@@ -13,10 +12,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/x-mod/glog"
 	"golang.org/x/net/trace"
 )
-
-type ContextHandler func(context.Context, http.ResponseWriter, *http.Request)
 
 type Server struct {
 	name   string
@@ -142,7 +140,6 @@ func (srv *Server) Route(opts ...RouteOpt) {
 		opt(cf)
 	}
 	if cf.handler != nil {
-		srv.printf("===== route ======")
 		r := srv.routes.NewRoute().Handler(cf.handler)
 		if cf.pattern != "" {
 			r.Path(cf.pattern)
@@ -185,7 +182,6 @@ func (srv *Server) Serve(ctx context.Context) error {
 		return err
 	}
 	srv.printf("%s serving at %s", srv.name, srv.addr)
-	log.Printf("%s serving at %s\n", srv.name, srv.addr)
 	if srv.tls != nil {
 		ln = tls.NewListener(ln, srv.tls)
 	}
@@ -213,6 +209,7 @@ func (srv *Server) printf(format string, a ...interface{}) {
 	if srv.events != nil {
 		srv.events.Printf(format, a...)
 	}
+	glog.V(2).Infof(format, a...)
 }
 
 func (srv *Server) errorf(format string, a ...interface{}) {
@@ -221,4 +218,5 @@ func (srv *Server) errorf(format string, a ...interface{}) {
 	if srv.events != nil {
 		srv.events.Errorf(format, a...)
 	}
+	glog.Errorf(format, a...)
 }

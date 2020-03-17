@@ -11,11 +11,18 @@ import (
 
 	"golang.org/x/net/trace"
 
+	"github.com/x-mod/glog"
 	"github.com/x-mod/httpserver"
 	"github.com/x-mod/routine"
 )
 
 func main() {
+	glog.Open(
+		glog.LogToStderr(true),
+		glog.Verbosity(2),
+	)
+	defer glog.Close()
+
 	srv := httpserver.NewServer(
 		httpserver.Address(":8080"),
 		httpserver.NetTrace(true),
