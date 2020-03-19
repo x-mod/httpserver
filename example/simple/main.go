@@ -49,9 +49,7 @@ func main() {
 		// routine.Go(routine.Profiling(":6060")),
 		routine.Signal(syscall.SIGINT, routine.SigHandler(func() {
 			log.Println("SIGINT ...")
-			if err := srv.Shutdown(ctx); err != nil {
-				log.Println("httpserver shutdown:", err)
-			}
+			srv.Close()
 		})),
 		// routine.Cleanup(routine.ExecutorFunc(srv.Shutdown)),
 	)

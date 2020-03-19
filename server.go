@@ -210,6 +210,10 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	return srv.http.Shutdown(ctx)
 }
 
+func (srv *Server) Close() {
+	srv.Shutdown(srv.rctx)
+}
+
 func (srv *Server) baseCtx(ln net.Listener) context.Context {
 	if srv.rctx != nil {
 		return srv.rctx
