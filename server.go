@@ -61,7 +61,7 @@ func HTTPHandler(handler http.Handler) ServerOpt {
 	}
 }
 
-func NewServer(opts ...ServerOpt) *Server {
+func New(opts ...ServerOpt) *Server {
 	srv := &Server{
 		name: "httpserver",
 		rctx: context.TODO(),
@@ -80,6 +80,10 @@ func NewServer(opts ...ServerOpt) *Server {
 		srv.events = trace.NewEventLog(srv.name, fmt.Sprintf("%s:%d", file, line))
 	}
 	return srv
+}
+
+func NewServer(opts ...ServerOpt) *Server {
+	return New(opts...)
 }
 
 type RouteCfg struct {
