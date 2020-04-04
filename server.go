@@ -183,12 +183,18 @@ func (srv *Server) Route(opts ...RouteOpt) {
 	}
 }
 
+//ServeHTTP Implement http.Handler interface
+func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if srv.handler != nil {
+		srv.handler.ServeHTTP(w, req)
+		return
+	}
+	srv.routes.ServeHTTP(w, req)
+}
+
 func (srv *Server) Serve(ctx context.Context) error {
 	srv.rctx = ctx
-	srv.http.Handler = srv.routes
-	if srv.handler != nil {
-		srv.http.Handler = srv.handler
-	}
+	srv.http.Handler = srv
 	srv.http.BaseContext = srv.baseCtx
 
 	ln, err := net.Listen("tcp", srv.addr)
