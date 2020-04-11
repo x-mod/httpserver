@@ -61,6 +61,14 @@ func HTTPHandler(handler http.Handler) ServerOpt {
 	}
 }
 
+type MiddlewareFunc func(http.Handler) http.Handler
+
+func Middleware(m MiddlewareFunc) ServerOpt {
+	return func(srv *Server) {
+		srv.routes.Use(mux.MiddlewareFunc(m))
+	}
+}
+
 func New(opts ...ServerOpt) *Server {
 	srv := &Server{
 		name: "httpserver",
