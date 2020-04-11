@@ -13,10 +13,7 @@ import (
 )
 
 func defaultPBContext(req *http.Request, ctx context.Context) context.Context {
-	if ctx != nil {
-		return req.Context()
-	}
-	return ctx
+	return req.Context()
 }
 
 func defaultPBRequest(req *http.Request, in proto.Message) error {
