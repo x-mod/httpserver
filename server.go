@@ -19,7 +19,6 @@ import (
 type Server struct {
 	name    string
 	addr    string
-	rctx    context.Context
 	http    *http.Server
 	tls     *tls.Config
 	routes  *mux.Router
@@ -72,7 +71,6 @@ func Middleware(m MiddlewareFunc) ServerOpt {
 func New(opts ...ServerOpt) *Server {
 	srv := &Server{
 		name: "httpserver",
-		rctx: context.TODO(),
 		http: &http.Server{
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 15 * time.Second,
@@ -201,9 +199,10 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (srv *Server) Serve(ctx context.Context) error {
-	srv.rctx = ctx
 	srv.http.Handler = srv
-	srv.http.BaseContext = srv.baseCtx
+	srv.http.BaseContext = func(net.Listener) context.Context {
+		return ctx
+	}
 
 	ln, err := net.Listen("tcp", srv.addr)
 	if err != nil {
@@ -225,14 +224,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 }
 
 func (srv *Server) Close() {
-	srv.Shutdown(srv.rctx)
-}
-
-func (srv *Server) baseCtx(ln net.Listener) context.Context {
-	if srv.rctx != nil {
-		return srv.rctx
-	}
-	return context.Background()
+	srv.http.Shutdown(context.TODO())
 }
 
 func (srv *Server) printf(format string, a ...interface{}) {
