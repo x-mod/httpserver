@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/x-mod/event"
 	"github.com/x-mod/glog"
 	"golang.org/x/net/trace"
 )
@@ -23,6 +24,8 @@ type Server struct {
 	tls     *tls.Config
 	routes  *mux.Router
 	handler http.Handler
+	stopped *event.Event
+	serving *event.Event
 	traced  bool
 	events  trace.EventLog
 	mu      sync.Mutex
@@ -76,7 +79,9 @@ func New(opts ...ServerOpt) *Server {
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
-		routes: mux.NewRouter(),
+		routes:  mux.NewRouter(),
+		stopped: event.New(),
+		serving: event.New(),
 	}
 	for _, opt := range opts {
 		opt(srv)
@@ -212,6 +217,10 @@ func (srv *Server) Serve(ctx context.Context) error {
 	if srv.tls != nil {
 		ln = tls.NewListener(ln, srv.tls)
 	}
+
+	defer srv.stopped.Fire()
+	srv.serving.Fire()
+
 	return srv.http.Serve(ln)
 }
 
@@ -221,6 +230,10 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 		srv.events = nil
 	}
 	return srv.http.Shutdown(ctx)
+}
+
+func (srv *Server) Serving() <-chan struct{} {
+	return srv.serving.Done()
 }
 
 func (srv *Server) Close() {

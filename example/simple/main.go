@@ -43,12 +43,20 @@ func main() {
 	)
 
 	ctx := context.WithValue(context.TODO(), "x", "y")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	err := routine.Main(
 		ctx,
-		routine.ExecutorFunc(srv.Serve),
-		// routine.Go(routine.Profiling(":6060")),
+		routine.ExecutorFunc(func(ctx context.Context) error {
+			<-srv.Serving()
+			log.Println("serving ... now")
+			<-ctx.Done()
+			return ctx.Err()
+		}),
+		routine.Go(routine.ExecutorFunc(srv.Serve)),
 		routine.Signal(syscall.SIGINT, routine.SigHandler(func() {
 			log.Println("SIGINT ...")
+			cancel()
 			srv.Close()
 		})),
 		// routine.Cleanup(routine.ExecutorFunc(srv.Shutdown)),
