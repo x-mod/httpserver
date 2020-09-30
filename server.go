@@ -204,6 +204,11 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (srv *Server) Serve(ctx context.Context) error {
+	defer func() {
+		if srv.events != nil {
+			srv.events.Finish()
+		}
+	}()
 	srv.http.Handler = srv
 	srv.http.BaseContext = func(net.Listener) context.Context {
 		return ctx
@@ -225,10 +230,6 @@ func (srv *Server) Serve(ctx context.Context) error {
 }
 
 func (srv *Server) Shutdown(ctx context.Context) error {
-	if srv.events != nil {
-		srv.events.Finish()
-		srv.events = nil
-	}
 	return srv.http.Shutdown(ctx)
 }
 
@@ -236,8 +237,12 @@ func (srv *Server) Serving() <-chan struct{} {
 	return srv.serving.Done()
 }
 
-func (srv *Server) Close() {
-	srv.http.Shutdown(context.TODO())
+func (srv *Server) Close() <-chan struct{} {
+	if srv.serving.HasFired() {
+		srv.http.Close()
+		return srv.stopped.Done()
+	}
+	return event.Done()
 }
 
 func (srv *Server) printf(format string, a ...interface{}) {

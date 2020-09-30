@@ -57,7 +57,8 @@ func main() {
 		routine.Signal(syscall.SIGINT, routine.SigHandler(func() {
 			log.Println("SIGINT ...")
 			cancel()
-			srv.Close()
+			<-srv.Close()
+			log.Println("serv ... stopped")
 		})),
 		// routine.Cleanup(routine.ExecutorFunc(srv.Shutdown)),
 	)
