@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"net/http"
 	"runtime"
@@ -90,6 +92,8 @@ func New(opts ...ServerOpt) *Server {
 		_, file, line, _ := runtime.Caller(1)
 		srv.events = trace.NewEventLog(srv.name, fmt.Sprintf("%s:%d", file, line))
 	}
+	// Disable net/http internal logging
+	srv.http.ErrorLog = log.New(io.Discard, "", 0)
 	return srv
 }
 
@@ -194,7 +198,7 @@ func (srv *Server) Route(opts ...RouteOpt) {
 	}
 }
 
-//ServeHTTP Implement http.Handler interface
+// ServeHTTP Implement http.Handler interface
 func (srv *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if srv.handler != nil {
 		srv.handler.ServeHTTP(w, req)
@@ -218,7 +222,6 @@ func (srv *Server) Serve(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	srv.printf("%s serving at %s", srv.name, srv.addr)
 	if srv.tls != nil {
 		ln = tls.NewListener(ln, srv.tls)
 	}
@@ -226,6 +229,7 @@ func (srv *Server) Serve(ctx context.Context) error {
 	defer srv.stopped.Fire()
 	srv.serving.Fire()
 
+	glog.Info(srv.name, " serving at ", srv.addr)
 	return srv.http.Serve(ln)
 }
 
